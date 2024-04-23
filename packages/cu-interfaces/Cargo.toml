@@ -1,5 +1,5 @@
 [package]
-name = "template-interfaces"
+name = "cu-interfaces"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
+kujira = { workspace = true }

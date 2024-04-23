@@ -1,6 +1,6 @@
 use cosmwasm_schema::write_api;
 
-use template_interfaces::template::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use cu_interfaces::launcher::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 fn main() {
     write_api! {
