@@ -1,7 +1,7 @@
 use cosmwasm_std::{
-    ensure_eq, instantiate2_address, to_json_binary, Addr, Api, Binary, CodeInfoResponse,
-    CosmosMsg, Decimal256, DepsMut, Env, MessageInfo, Order, QuerierWrapper, Response, StdResult,
-    Timestamp, WasmMsg,
+    ensure_eq, instantiate2_address, to_json_binary, wasm_execute, Addr, Api, Binary,
+    CodeInfoResponse, CosmosMsg, Decimal256, DepsMut, Env, Event, MessageInfo, Order,
+    QuerierWrapper, Response, StdResult, Timestamp, WasmMsg,
 };
 use cw_utils::Expiration;
 use kujira::{DenomMsg, KujiraMsg, KujiraQuery, Precision};
@@ -16,6 +16,7 @@ pub fn crank(
 ) -> Result<Response<KujiraMsg>, ContractError> {
     ensure_eq!(info.sender, cfg.owner, ContractError::Unauthorized {});
     let mut msgs = vec![];
+    let mut events = vec![];
 
     let markets = MARKETS
         .range(deps.storage, None, None, Order::Ascending)
@@ -27,7 +28,7 @@ pub fn crank(
         Expiration::AtTime(Timestamp::from_seconds(*expiry)).is_expired(&env.block)
     }) {
         MARKETS.remove(deps.storage, *id);
-        todo!("Garbage collect market {}", id);
+        //FIXME: Any other cleanup that needs to be done?
     }
 
     // Then, launch any new markets that are ready.
@@ -44,7 +45,11 @@ pub fn crank(
         msgs.extend(launch_msgs);
         MARKETS.save(deps.storage, new_expiry, &fin)?;
 
-        todo!("Launch new market at {}", new_expiry);
+        events.push(
+            Event::new("cu-exchange/launch-market")
+                .add_attribute("expiry", format!("{}", new_expiry))
+                .add_attribute("address", fin.as_str()),
+        );
     }
 
     Ok(Response::default())
@@ -85,7 +90,7 @@ fn launch_market(
         fee_maker: Decimal256::zero(),
         fee_address: env.contract.address.clone(),
     };
-    let fin_launch = WasmMsg::Instantiate2 {
+    let fin_instantiate = WasmMsg::Instantiate2 {
         admin: Some(env.contract.address.to_string()),
         code_id: cfg.fin_code_id,
         label: format!("CU Exchange: FIN: {expiry}-USD"),
@@ -93,6 +98,9 @@ fn launch_market(
         funds: vec![],
         salt,
     };
+    msgs.push(fin_instantiate.into());
+
+    let fin_launch = wasm_execute(&fin_address, &kujira::fin::ExecuteMsg::Launch {}, vec![])?;
     msgs.push(fin_launch.into());
 
     Ok((fin_address, msgs))

@@ -15,8 +15,8 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut<KujiraQuery>,
-    _env: Env,
-    _info: MessageInfo,
+    env: Env,
+    info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response<KujiraMsg>, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -24,7 +24,8 @@ pub fn instantiate(
     let cfg = Config::new(msg);
     cfg.save(deps.storage, deps.api)?;
 
-    Ok(Response::default())
+    let res = execute::crank(deps, env, info, cfg)?;
+    Ok(res)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
